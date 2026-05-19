@@ -99,7 +99,11 @@
 - **포인트 퀴즈 세션 생성:** 전체 카테고리에서 랜덤 문제를 출제하며, 월 단위로 완료된 포인트 퀴즈가 있으면 중복 생성을 차단합니다.
 - **문제 조회:** 세션 ID와 문제 순번을 기준으로 현재 풀어야 할 문제를 조회합니다. 세션 소유자 검증을 통해 다른 사용자의 세션 접근을 방지합니다.
 - **답안 제출:** 제출한 선택지와 정답을 비교하고 세션 도메인에 정오답 결과를 반영합니다. 포인트 퀴즈 통과 여부에 따라 시드머니 지급 이벤트를 발행합니다.
+- **AI 챗봇 대화:** 문제 풀이 중 AI 챗봇에게 질문하여 개념 설명과 힌트를 받을 수 있습니다. 학습 모드에서는 정답 포함 자유 응답을, 포인트 모드에서는 정답을 차단하고 개념 힌트만 제공합니다. 문제별 대화 기록이 독립적으로 저장되어 이어서 질문이 가능합니다.
+- **개념 정리 대상 문제 선택:** 세션 종료 전 사용자가 복습하고 싶은 문제를 선택하면 해당 문제의 해설이 개념 정리 생성에 포함됩니다.
 - **세션 종료:** 진행 중인 퀴즈 세션을 종료하고 최종 상태를 응답합니다.
+- **개념 정리 비동기 생성:** 세션 종료 후 선택된 문제의 해설을 AI가 자동 요약하여 개념 정리 노트를 생성합니다. 비동기(`@Async`)로 처리되어 세션 종료 응답 속도에 영향을 주지 않습니다.
+- **개념 정리 조회:** 비동기 생성이 완료된 개념 정리를 조회합니다.
 - **퀴즈 ETL:** 관리자 API를 통해 키워드 생성, 위키피디아 크롤링, 청킹/임베딩, 퀴즈 생성 및 품질 검증 파이프라인을 실행합니다.
 - **Outbox 이벤트 발행:** 퀴즈 제출/채점 이벤트를 도메인 트랜잭션 안에서 Outbox 테이블에 저장하고, Relay가 주기적으로 Kafka에 발행해 메시지 유실 가능성을 낮춥니다.
 
@@ -180,13 +184,17 @@
 ### Quiz
 
 | Method | Endpoint | 설명 |
-| --- | --- | --- |
-| `POST` | `/api/quiz/sessions/learning` | 학습 퀴즈 세션 생성 |
-| `POST` | `/api/quiz/sessions/point` | 포인트 퀴즈 세션 생성 |
-| `GET` | `/api/quiz/sessions/{sessionId}/quizzes/{orderNo}` | 문제 조회 |
-| `POST` | `/api/quiz/sessions/{sessionId}/quizzes/{orderNo}/answers` | 답안 제출 |
-| `POST` | `/api/quiz/sessions/{sessionId}/close` | 세션 종료 |
-| `POST` | `/api/v1/admin/quiz-etl` | 퀴즈 ETL 수동 실행 |
+|---|---|---|
+| `POST` | `/api/v1/quiz/sessions/learning` | 학습 퀴즈 세션 생성 |
+| `POST` | `/api/v1/quiz/sessions/point` | 포인트 퀴즈 세션 생성 |
+| `GET` | `/api/v1/quiz/sessions/{sessionId}/quizzes/{orderNo}` | 문제 조회 |
+| `POST` | `/api/v1/quiz/sessions/{sessionId}/quizzes/{orderNo}/answers` | 답안 제출 |
+| `POST` | `/api/v1/quiz/sessions/{sessionId}/quizzes/{orderNo}/chat` | 챗봇 메시지 전송 |
+| `GET` | `/api/v1/quiz/sessions/{sessionId}/quizzes/{orderNo}/chat` | 챗봇 대화 기록 조회 |
+| `POST` | `/api/v1/quiz/sessions/{sessionId}/concept-includes` | 개념 정리 대상 문제 선택 |
+| `POST` | `/api/v1/quiz/sessions/{sessionId}/close` | 세션 종료 |
+| `GET` | `/api/v1/quiz/sessions/{sessionId}/concept-summary` | 개념 정리 조회 |
+| `POST` | `/api/v1/admin/quiz-etl` | 퀴즈 ETL 전체 파이프라인 수동 실행 |
 
 ### Simulation
 
@@ -429,7 +437,8 @@ http://localhost:8080/api-docs.html
 - **Simulation 고도화:** 실시간 시세 연동 범위 확대, 수익률/리스크 지표 강화, 포트폴리오 AI 분석 확장
 - **Gateway 보안 강화:** 토큰 블랙리스트 검증 활성화, 내부 API 접근 제어, 서비스 간 인증 정책 추가
 - **운영 환경 구성:** Docker Compose 또는 Kubernetes 기반 통합 실행 환경 정리
-
+- **Quiz 챗봇 히스토리 슬라이딩 윈도우 적용**: 대화가 길어질수록 프롬프트 토큰 비용과 응답 속도가 증가하는 문제를 MessageWindowChatMemory 기반 슬라이딩 윈도우로 해결, 최근 N턴만 컨텍스트로 유지
+- **포인트 세션 중복 참여 방지**: 동일 사용자가 짧은 시간 내 포인트 세션을 반복 생성하여 시드머니를 중복 획득하는 어뷰징 방지 로직 추가
 ---
 
 <div align="center">
